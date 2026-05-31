@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { NCheckbox, NIcon } from 'naive-ui'
 import { ArrowRight, ChevronDown } from '@vicons/carbon'
 import type { FlatApiItem, RawApiNode } from '../types/api'
-import { countApis, findFlatKeyForNode, isApiNode } from '../utils/apiTree'
+import { countApis, isApiNode } from '../utils/apiTree'
 import { makeNodeSegment } from '../utils/key'
 import { matchGroup } from '../utils/search'
 import MethodBadge from './MethodBadge.vue'
@@ -14,6 +14,7 @@ const props = defineProps<{
   idPath: string[]
   query: string
   flat: FlatApiItem[]
+  nodeMap: Map<RawApiNode, string>
   selectedKeys: Set<string>
   collapsedKeys: Set<string>
   getGroupState: (node: RawApiNode) => { checked: boolean; indeterminate: boolean; selected: number; total: number }
@@ -27,7 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const nodeKey = computed(() => [...props.idPath, makeNodeSegment(props.node, props.index)].join('/'))
-const apiKey = computed(() => isApiNode(props.node) ? findFlatKeyForNode(props.flat, props.node) : '')
+const apiKey = computed(() => isApiNode(props.node) ? (props.nodeMap.get(props.node) || '') : '')
 const isCollapsed = computed(() => props.collapsedKeys.has(nodeKey.value))
 const apiCount = computed(() => countApis(props.node))
 const groupState = computed(() => props.getGroupState(props.node))
@@ -70,6 +71,7 @@ const visible = computed(() => {
           :id-path="[...idPath, makeNodeSegment(node, index)]"
           :query="query"
           :flat="flat"
+          :node-map="nodeMap"
           :selected-keys="selectedKeys"
           :collapsed-keys="collapsedKeys"
           :get-group-state="getGroupState"

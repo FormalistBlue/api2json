@@ -3,7 +3,7 @@ import type { FlatApiItem, RawApiNode } from '../types/api'
 import { collectKeys, groupSelectionState } from '../utils/apiTree'
 import { matchApi } from '../utils/search'
 
-export function useSelection(flat: Ref<FlatApiItem[]>, query: Ref<string>) {
+export function useSelection(flat: Ref<FlatApiItem[]>, nodeMap: Ref<Map<RawApiNode, string>>, query: Ref<string>) {
   const selectedApiKeys = ref(new Set<string>())
   const selectedCount = computed(() => selectedApiKeys.value.size)
 
@@ -34,14 +34,14 @@ export function useSelection(flat: Ref<FlatApiItem[]>, query: Ref<string>) {
 
   function setGroup(node: RawApiNode, on: boolean) {
     const keys: string[] = []
-    collectKeys(node, flat.value, keys)
+    collectKeys(node, nodeMap.value, keys)
     const next = new Set(selectedApiKeys.value)
     keys.forEach((key) => (on ? next.add(key) : next.delete(key)))
     selectedApiKeys.value = next
   }
 
   function getGroupState(node: RawApiNode) {
-    return groupSelectionState(node, selectedApiKeys.value, flat.value)
+    return groupSelectionState(node, selectedApiKeys.value, nodeMap.value)
   }
 
   return {

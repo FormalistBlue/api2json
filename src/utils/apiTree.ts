@@ -27,11 +27,12 @@ export function countModules(nodes: RawApiNode[] = []): number {
   return total
 }
 
-export function buildFlat(root: RawApiRoot): FlatApiItem[] {
+export function buildFlat(root: RawApiRoot): { flat: FlatApiItem[]; nodeMap: Map<RawApiNode, string> } {
   const flat: FlatApiItem[] = []
+  const nodeMap = new Map<RawApiNode, string>()
   const modules = Array.isArray(root?.data) ? root.data : []
-  modules.forEach((node, index) => walkNode(node, [], [], index, flat))
-  return flat
+  modules.forEach((node, index) => walkNode(node, [], [], index, flat, nodeMap))
+  return { flat, nodeMap }
 }
 
 function walkNode(
@@ -40,16 +41,19 @@ function walkNode(
   namePath: string[],
   index: number,
   flat: FlatApiItem[],
+  nodeMap: Map<RawApiNode, string>,
 ) {
   if (!node || typeof node !== 'object') return
   const nodeName = String(node.name ?? '')
 
   if (isApiNode(node)) {
+    const key = makeApiKey(node, idPath)
+    nodeMap.set(node, key)
     flat.push({
       path: [...idPath],
       pathNames: [...namePath],
       api: node,
-      key: makeApiKey(node, idPath, index),
+      key,
     })
     return
   }
@@ -57,30 +61,31 @@ function walkNode(
   if (Array.isArray(node.data)) {
     const newIdPath = [...idPath, makeNodeSegment(node, index)]
     const newNamePath = [...namePath, nodeName]
-    node.data.forEach((child, childIndex) => walkNode(child, newIdPath, newNamePath, childIndex, flat))
+    node.data.forEach((child, childIndex) => walkNode(child, newIdPath, newNamePath, childIndex, flat, nodeMap))
   }
 }
 
-export function findFlatKeyForNode(flat: FlatApiItem[], node: RawApiNode) {
-  return flat.find((item) => item.api === node)?.key || ''
+/** O(1) lookup via Map — nodeMap must come from buildFlat */
+export function findFlatKeyForNode(nodeMap: Map<RawApiNode, string>, node: RawApiNode) {
+  return nodeMap.get(node) || ''
 }
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-export function filterTree(nodes: RawApiNode[] = [], selectedKeys: Set<string>, flat: FlatApiItem[]) {
+export function filterTree(nodes: RawApiNode[] = [], selectedKeys: Set<string>, nodeMap: Map<RawApiNode, string>) {
   const result: RawApiNode[] = []
 
   for (const node of nodes) {
     if (isApiNode(node)) {
-      const key = findFlatKeyForNode(flat, node)
+      const key = nodeMap.get(node)
       if (key && selectedKeys.has(key)) result.push(cloneJson(node))
       continue
     }
 
     if (Array.isArray(node.data)) {
-      const filteredChildren = filterTree(node.data, selectedKeys, flat)
+      const filteredChildren = filterTree(node.data, selectedKeys, nodeMap)
       if (filteredChildren.length > 0) {
         const nodeCopy = cloneJson(node)
         nodeCopy.data = filteredChildren
@@ -92,15 +97,15 @@ export function filterTree(nodes: RawApiNode[] = [], selectedKeys: Set<string>, 
   return result
 }
 
-export function buildExportRoot(rawRoot: RawApiRoot, selectedKeys: Set<string>, flat: FlatApiItem[]) {
+export function buildExportRoot(rawRoot: RawApiRoot, selectedKeys: Set<string>, nodeMap: Map<RawApiNode, string>) {
   const out = cloneJson(rawRoot)
-  out.data = filterTree(rawRoot.data || [], selectedKeys, flat)
+  out.data = filterTree(rawRoot.data || [], selectedKeys, nodeMap)
   return out
 }
 
-export function groupSelectionState(node: RawApiNode, selectedKeys: Set<string>, flat: FlatApiItem[]) {
+export function groupSelectionState(node: RawApiNode, selectedKeys: Set<string>, nodeMap: Map<RawApiNode, string>) {
   const keys: string[] = []
-  collectKeys(node, flat, keys)
+  collectKeys(node, nodeMap, keys)
   const selected = keys.filter((key) => selectedKeys.has(key)).length
   return {
     total: keys.length,
@@ -110,11 +115,11 @@ export function groupSelectionState(node: RawApiNode, selectedKeys: Set<string>,
   }
 }
 
-export function collectKeys(node: RawApiNode, flat: FlatApiItem[], keys: string[]) {
+export function collectKeys(node: RawApiNode, nodeMap: Map<RawApiNode, string>, keys: string[]) {
   if (isApiNode(node)) {
-    const key = findFlatKeyForNode(flat, node)
+    const key = nodeMap.get(node)
     if (key) keys.push(key)
     return
   }
-  if (Array.isArray(node.data)) node.data.forEach((child) => collectKeys(child, flat, keys))
+  if (Array.isArray(node.data)) node.data.forEach((child) => collectKeys(child, nodeMap, keys))
 }

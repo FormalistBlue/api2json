@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue'
-import type { FlatApiItem, RawApiRoot } from '../types/api'
+import type { FlatApiItem, RawApiNode, RawApiRoot } from '../types/api'
 import { buildFlat, countModules } from '../utils/apiTree'
 import { readJsonFile } from '../utils/file'
 
 export function useApiDocument() {
   const rawRoot = ref<RawApiRoot | null>(null)
   const flat = ref<FlatApiItem[]>([])
+  const nodeMap = ref<Map<RawApiNode, string>>(new Map())
   const fileName = ref('')
   const error = ref('')
   const isParsing = ref(false)
@@ -17,6 +18,7 @@ export function useApiDocument() {
   function reset() {
     rawRoot.value = null
     flat.value = []
+    nodeMap.value = new Map()
     fileName.value = ''
     error.value = ''
   }
@@ -26,8 +28,10 @@ export function useApiDocument() {
     error.value = ''
     try {
       const root = await readJsonFile(file)
+      const result = buildFlat(root)
       rawRoot.value = root
-      flat.value = buildFlat(root)
+      flat.value = result.flat
+      nodeMap.value = result.nodeMap
       fileName.value = file.name
     } catch (err) {
       reset()
@@ -42,6 +46,7 @@ export function useApiDocument() {
   return {
     rawRoot,
     flat,
+    nodeMap,
     fileName,
     error,
     isParsing,

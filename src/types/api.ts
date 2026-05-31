@@ -28,4 +28,5 @@ export interface ParseResult {
   flat: FlatApiItem[]
   moduleCount: number
   apiCount: number
+  nodeMap: Map<RawApiNode, string>
 }

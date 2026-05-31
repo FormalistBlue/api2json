@@ -14,6 +14,8 @@ import TopBar from './components/TopBar.vue'
 import CommandBar from './components/CommandBar.vue'
 import ModuleTree from './components/ModuleTree.vue'
 import ApiList from './components/ApiList.vue'
+import ApiDetail from './components/ApiDetail.vue'
+import JsonPreview from './components/JsonPreview.vue'
 
 const rootRef = ref<HTMLElement | null>(null)
 useAppEnter(rootRef)
@@ -21,9 +23,42 @@ useAppEnter(rootRef)
 const doc = useApiDocument()
 const { theme, isLight, toggleTheme } = useTheme()
 const filter = useApiFilter(doc.flat)
-const selection = useSelection(doc.flat, filter.debouncedQuery)
+const selection = useSelection(doc.flat, doc.nodeMap, filter.debouncedQuery)
 filter.setSelectedKeys(selection.selectedApiKeys)
 const collapsedKeys = ref(new Set<string>())
+
+// --- API Detail ---
+const detailItem = ref<import('./types/api').FlatApiItem | null>(null)
+function showDetail(item: import('./types/api').FlatApiItem) {
+  detailItem.value = item
+}
+
+// --- JSON Preview ---
+const showJsonPreview = ref(false)
+
+// --- Full-screen drag & drop ---
+const isGlobalDragging = ref(false)
+let dragCounter = 0
+function onGlobalDragEnter(e: DragEvent) {
+  e.preventDefault()
+  dragCounter++
+  if (e.dataTransfer?.types.includes('Files')) isGlobalDragging.value = true
+}
+function onGlobalDragLeave(e: DragEvent) {
+  e.preventDefault()
+  dragCounter--
+  if (dragCounter <= 0) { isGlobalDragging.value = false; dragCounter = 0 }
+}
+function onGlobalDragOver(e: DragEvent) {
+  e.preventDefault()
+}
+async function onGlobalDrop(e: DragEvent) {
+  e.preventDefault()
+  isGlobalDragging.value = false
+  dragCounter = 0
+  const file = e.dataTransfer?.files?.[0]
+  if (file) await loadFile(file)
+}
 
 // --- Panel resize ---
 const panelWidth = ref(380)
@@ -80,13 +115,14 @@ function getDiscrete() {
 
 const modules = computed(() => doc.rawRoot.value?.data || [])
 const exportObject = computed(() => doc.rawRoot.value
-  ? buildExportRoot(doc.rawRoot.value, selection.selectedApiKeys.value, doc.flat.value)
+  ? buildExportRoot(doc.rawRoot.value, selection.selectedApiKeys.value, doc.nodeMap.value)
   : null)
 
 async function loadFile(file: File) {
   await doc.loadFile(file)
   selection.clearSelection()
   collapsedKeys.value = new Set()
+  detailItem.value = null
 
   if (!doc.error.value) {
     const { notification } = getDiscrete()
@@ -155,10 +191,27 @@ watch(() => doc.error.value, (err) => {
 <template>
   <NConfigProvider :theme="isLight ? null : naiveDarkTheme" :theme-overrides="isLight ? naiveLightThemeOverrides : naiveDarkThemeOverrides">
     <NMessageProvider>
-      <div ref="rootRef" class="app-shell" :data-mode="theme" :class="{ dragging: isDragging }">
+      <div
+        ref="rootRef"
+        class="app-shell"
+        :data-mode="theme"
+        :class="{ dragging: isDragging }"
+        @dragenter="onGlobalDragEnter"
+        @dragleave="onGlobalDragLeave"
+        @dragover="onGlobalDragOver"
+        @drop="onGlobalDrop"
+      >
         <div class="ambient-grid" aria-hidden="true"></div>
         <div class="orb orb-a" aria-hidden="true"></div>
         <div class="orb orb-b" aria-hidden="true"></div>
+
+        <!-- Full-screen drop overlay -->
+        <Transition name="fade">
+          <div v-if="isGlobalDragging" class="global-drop-overlay">
+            <div class="drop-orb"></div>
+            <span class="drop-text">释放文件以导入</span>
+          </div>
+        </Transition>
 
         <TopBar
           :selected-count="selection.selectedCount.value"
@@ -175,12 +228,14 @@ watch(() => doc.error.value, (err) => {
           :has-document="doc.hasDocument.value"
           :selected-count="selection.selectedCount.value"
           :is-parsing="doc.isParsing.value"
+          :can-preview="Boolean(exportObject)"
           @file="loadFile"
           @select-visible="selection.selectVisible"
           @export="exportSelected"
           @copy="copySelected"
           @expand-all="expandAll"
           @collapse-all="collapseAll"
+          @preview-json="showJsonPreview = true"
         />
 
         <main class="workspace">
@@ -188,6 +243,7 @@ watch(() => doc.error.value, (err) => {
             :nodes="modules"
             :query="filter.debouncedQuery.value"
             :flat="doc.flat.value"
+            :node-map="doc.nodeMap.value"
             :selected-keys="selection.selectedApiKeys.value"
             :collapsed-keys="collapsedKeys"
             :get-group-state="selection.getGroupState"
@@ -207,8 +263,22 @@ watch(() => doc.error.value, (err) => {
             :has-document="doc.hasDocument.value"
             @toggle="selection.toggleKey"
             @clear-query="filter.query.value = ''"
+            @show-detail="showDetail"
           />
         </main>
+
+        <!-- API Detail Drawer -->
+        <ApiDetail
+          :item="detailItem"
+          @close="detailItem = null"
+        />
+
+        <!-- JSON Preview Modal -->
+        <JsonPreview
+          v-if="showJsonPreview && exportObject"
+          :data="exportObject"
+          @close="showJsonPreview = false"
+        />
       </div>
     </NMessageProvider>
   </NConfigProvider>
@@ -271,4 +341,39 @@ watch(() => doc.error.value, (err) => {
   .workspace { flex-direction: column; padding: 14px 16px 22px; }
   .resize-handle { display: none; }
 }
+
+/* Global drop overlay */
+.global-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 118, 110, 0.12);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+.drop-orb {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: var(--accent);
+  filter: blur(80px);
+  opacity: .3;
+  animation: pulse-orb 1.6s ease-in-out infinite alternate;
+}
+.drop-text {
+  position: relative;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent-strong);
+  letter-spacing: -0.02em;
+}
+@keyframes pulse-orb {
+  from { transform: scale(1); opacity: .25; }
+  to { transform: scale(1.15); opacity: .4; }
+}
+.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

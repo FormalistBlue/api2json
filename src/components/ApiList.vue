@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { RecycleScroller } from 'vue-virtual-scroller'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import type { FlatApiItem } from '../types/api'
 import { animateList } from '../composables/useGsapMotion'
 import { gsap } from 'gsap'
@@ -15,10 +15,21 @@ const props = defineProps<{
   hasDocument: boolean
 }>()
 
-defineEmits<{ toggle: [key: string]; clearQuery: [] }>()
+const emit = defineEmits<{
+  toggle: [key: string]
+  clearQuery: []
+  showDetail: [item: FlatApiItem]
+}>()
+
 const listRef = ref<HTMLElement | null>(null)
-const scrollerRef = ref<InstanceType<typeof RecycleScroller> | null>(null)
 const useVirtual = computed(() => props.items.length > 200)
+
+const virtualizer = useVirtualizer({
+  get count() { return props.items.length },
+  getScrollElement: () => listRef.value,
+  estimateSize: () => 118,
+  overscan: 8,
+})
 
 function highlightEl(el: Element) {
   gsap.fromTo(el as HTMLElement,
@@ -28,11 +39,10 @@ function highlightEl(el: Element) {
 }
 
 function scrollToKey(key: string) {
-  if (useVirtual.value && scrollerRef.value) {
+  if (useVirtual.value) {
     const index = props.items.findIndex(item => item.key === key)
     if (index >= 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (scrollerRef.value as any).scrollToItem(index)
+      virtualizer.value.scrollToIndex(index, { align: 'center' })
       nextTick(() => {
         const el = document.querySelector(`[data-key="${key}"]`)
         if (el) highlightEl(el)
@@ -79,23 +89,31 @@ watch(() => [props.items.length, props.query], async () => {
       @action="$emit('clearQuery')"
     />
 
-    <RecycleScroller
+    <!-- Virtual list for large datasets -->
+    <div
       v-else-if="useVirtual"
-      ref="scrollerRef"
+      ref="listRef"
       class="api-wrap api-scroller"
-      :items="items"
-      :item-size="118"
-      key-field="key"
-      v-slot="{ item }"
     >
-      <ApiListItem
-        :data-key="item.key"
-        :item="item"
-        :checked="selectedKeys.has(item.key)"
-        @toggle="$emit('toggle', $event)"
-      />
-    </RecycleScroller>
+      <div :style="{ height: virtualizer.getTotalSize() + 'px', position: 'relative', width: '100%' }">
+        <div
+          v-for="row in virtualizer.getVirtualItems()"
+          :key="String(row.key)"
+          :style="{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${row.start}px)` }"
+        >
+          <ApiListItem
+            :data-key="items[row.index].key"
+            :item="items[row.index]"
+            :checked="selectedKeys.has(items[row.index].key)"
+            :query="query"
+            @toggle="$emit('toggle', $event)"
+            @show-detail="$emit('showDetail', $event)"
+          />
+        </div>
+      </div>
+    </div>
 
+    <!-- Normal list for smaller datasets -->
     <div v-else ref="listRef" class="api-wrap">
       <ApiListItem
         v-for="item in items"
@@ -103,7 +121,9 @@ watch(() => [props.items.length, props.query], async () => {
         :data-key="item.key"
         :item="item"
         :checked="selectedKeys.has(item.key)"
+        :query="query"
         @toggle="$emit('toggle', $event)"
+        @show-detail="$emit('showDetail', $event)"
       />
     </div>
   </section>

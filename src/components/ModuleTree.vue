@@ -10,6 +10,7 @@ const props = defineProps<{
   nodes: RawApiNode[]
   query: string
   flat: FlatApiItem[]
+  nodeMap: Map<RawApiNode, string>
   selectedKeys: Set<string>
   collapsedKeys: Set<string>
   getGroupState: (node: RawApiNode) => { checked: boolean; indeterminate: boolean; selected: number; total: number }
@@ -49,6 +50,7 @@ watch(() => [props.nodes, props.query], async () => {
         :id-path="[]"
         :query="query"
         :flat="flat"
+        :node-map="nodeMap"
         :selected-keys="selectedKeys"
         :collapsed-keys="collapsedKeys"
         :get-group-state="getGroupState"

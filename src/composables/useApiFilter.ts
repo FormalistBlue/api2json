@@ -1,18 +1,14 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import type { FlatApiItem } from '../types/api'
 import { matchApi } from '../utils/search'
+import { useDebounce } from './useDebounce'
 
 export function useApiFilter(flat: Ref<FlatApiItem[]>) {
   const query = ref('')
-  const debouncedQuery = ref('')
   const showCheckedOnly = ref(false)
   const selectedApiKeys = ref(new Set<string>())
 
-  let timer: ReturnType<typeof setTimeout> | null = null
-  watch(query, (val) => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => { debouncedQuery.value = val }, 150)
-  }, { immediate: true })
+  const debouncedQuery = useDebounce(query, 150)
 
   function setSelectedKeys(keys: Ref<Set<string>>) {
     watch(keys, (val) => { selectedApiKeys.value = val }, { immediate: true })

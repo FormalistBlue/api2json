@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { NButton, NIcon, NInput, NSwitch, useMessage } from 'naive-ui'
-import { Copy, Download, Search, View } from '@vicons/carbon'
+import { Code, Copy, Download, Search, View } from '@vicons/carbon'
 import UploadZone from './UploadZone.vue'
 import { flashExport } from '../composables/useGsapMotion'
 
@@ -11,6 +11,7 @@ const props = defineProps<{
   hasDocument: boolean
   selectedCount: number
   isParsing: boolean
+  canPreview: boolean
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   copy: []
   expandAll: []
   collapseAll: []
+  previewJson: []
 }>()
 
 const exportRef = ref<HTMLElement | null>(null)
@@ -63,6 +65,10 @@ function onExport() {
       <span>只看已选</span>
       <NSwitch :value="showCheckedOnly" @update:value="emit('update:showCheckedOnly', $event)" />
     </label>
+    <NButton secondary :disabled="!canPreview" @click="emit('previewJson')">
+      <template #icon><NIcon :component="Code" /></template>
+      预览
+    </NButton>
     <NButton secondary :disabled="!canExport" @click="emit('copy')">
       <template #icon><NIcon :component="Copy" /></template>
       复制已选
@@ -89,6 +95,7 @@ function onExport() {
   background: rgba(10, 16, 14, 0.44);
 }
 .search-input { width: min(34vw, 420px); }
+
 .btn-group {
   display: inline-flex;
   border: 1px solid rgba(69, 93, 82, 0.18);
