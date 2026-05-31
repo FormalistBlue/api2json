@@ -185,7 +185,7 @@ function download() {
 .vjs-value-null, .vjs-value-undefined { color: var(--text-dim); }
 .vjs-tree-node:hover { background: var(--accent-soft); }
 
-[data-theme='dark'] .vjs-key { color: #e2e8f0 !important; }
+[data-theme='dark'] .vjs-key { color: #7dd3c8; }
 [data-theme='dark'] .vjs-value-string { color: #4ade80; }
 [data-theme='dark'] .vjs-value-number,
 [data-theme='dark'] .vjs-value-boolean { color: #fbbf24; }
