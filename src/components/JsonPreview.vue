@@ -175,24 +175,23 @@ function download() {
   background: var(--bg-soft);
 }
 
-/* vue-json-pretty theme overrides */
-:deep(.vjs-tree) {
-  font-family: var(--font-mono) !important;
-  font-size: 13px;
-}
-:deep(.vjs-tree .vjs-tree-node:hover) {
-  background: var(--accent-soft);
-}
-:deep(.vjs-tree .vjs-key) { color: #0f766e; }
-:deep(.vjs-tree .vjs-string) { color: #16a34a; }
-:deep(.vjs-tree .vjs-number) { color: #d97706; }
-:deep(.vjs-tree .vjs-boolean) { color: #7c3aed; }
-:deep(.vjs-tree .vjs-null) { color: var(--text-dim); }
+/* vue-json-pretty theme overrides (global, not scoped) */
+</style>
 
-[data-theme='dark'] :deep(.vjs-tree .vjs-key) { color: #e2e8f0; }
-[data-theme='dark'] :deep(.vjs-tree .vjs-string) { color: #4ade80; }
-[data-theme='dark'] :deep(.vjs-tree .vjs-number) { color: #fbbf24; }
-[data-theme='dark'] :deep(.vjs-tree .vjs-boolean) { color: #a78bfa; }
+<style>
+.vjs-key { color: #0f766e; }
+.vjs-value-string { color: #16a34a; }
+.vjs-value-number, .vjs-value-boolean { color: #d97706; }
+.vjs-value-null, .vjs-value-undefined { color: var(--text-dim); }
+.vjs-tree-node:hover { background: var(--accent-soft); }
+
+[data-theme='dark'] .vjs-key { color: #e2e8f0 !important; }
+[data-theme='dark'] .vjs-value-string { color: #4ade80; }
+[data-theme='dark'] .vjs-value-number,
+[data-theme='dark'] .vjs-value-boolean { color: #fbbf24; }
+[data-theme='dark'] .vjs-tree-node:hover { background: rgba(20, 184, 166, 0.08); }
+[data-theme='dark'] .vjs-tree-node.is-highlight { background: rgba(20, 184, 166, 0.08); }
+[data-theme='dark'] .vjs-tree-node .vjs-tree-node-actions { background: rgba(20, 184, 166, 0.08); }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
