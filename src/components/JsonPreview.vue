@@ -189,7 +189,7 @@ function download() {
 :deep(.vjs-tree .vjs-boolean) { color: #7c3aed; }
 :deep(.vjs-tree .vjs-null) { color: var(--text-dim); }
 
-[data-theme='dark'] :deep(.vjs-tree .vjs-key) { color: #2dd4bf; }
+[data-theme='dark'] :deep(.vjs-tree .vjs-key) { color: #e2e8f0; }
 [data-theme='dark'] :deep(.vjs-tree .vjs-string) { color: #4ade80; }
 [data-theme='dark'] :deep(.vjs-tree .vjs-number) { color: #fbbf24; }
 [data-theme='dark'] :deep(.vjs-tree .vjs-boolean) { color: #a78bfa; }
