@@ -1,0 +1,120 @@
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue'
+import { RecycleScroller } from 'vue-virtual-scroller'
+import type { FlatApiItem } from '../types/api'
+import { animateList } from '../composables/useGsapMotion'
+import { gsap } from 'gsap'
+import ApiListItem from './ApiListItem.vue'
+import EmptyPanel from './EmptyPanel.vue'
+
+const props = defineProps<{
+  items: FlatApiItem[]
+  total: number
+  query: string
+  selectedKeys: Set<string>
+  hasDocument: boolean
+}>()
+
+defineEmits<{ toggle: [key: string]; clearQuery: [] }>()
+const listRef = ref<HTMLElement | null>(null)
+const scrollerRef = ref<InstanceType<typeof RecycleScroller> | null>(null)
+const useVirtual = computed(() => props.items.length > 200)
+
+function highlightEl(el: Element) {
+  gsap.fromTo(el as HTMLElement,
+    { boxShadow: 'inset 0 0 0 2px rgba(15,118,110,0.6)', background: 'rgba(15,118,110,0.08)' },
+    { boxShadow: 'inset 0 0 0 2px transparent', background: 'transparent', duration: 1.2, ease: 'power2.out' },
+  )
+}
+
+function scrollToKey(key: string) {
+  if (useVirtual.value && scrollerRef.value) {
+    const index = props.items.findIndex(item => item.key === key)
+    if (index >= 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (scrollerRef.value as any).scrollToItem(index)
+      nextTick(() => {
+        const el = document.querySelector(`[data-key="${key}"]`)
+        if (el) highlightEl(el)
+      })
+    }
+  } else if (listRef.value) {
+    const el = listRef.value.querySelector(`[data-key="${key}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => highlightEl(el), 350)
+    }
+  }
+}
+
+defineExpose({ scrollToKey })
+
+watch(() => [props.items.length, props.query], async () => {
+  if (useVirtual.value) return
+  await nextTick()
+  animateList(listRef.value)
+})
+</script>
+
+<template>
+  <section class="panel api-panel" data-enter="panel">
+    <div class="panel-head">
+      <div>
+        <span class="kicker">ENDPOINT LEDGER</span>
+        <h2>接口</h2>
+      </div>
+      <span class="pill">{{ items.length }} / {{ total }}</span>
+    </div>
+
+    <EmptyPanel
+      v-if="!hasDocument"
+      title="选择一个 JSON 文件以查看接口"
+      description="解析完成后，右侧会按模块路径展示所有接口，支持搜索、勾选和导出。"
+    />
+    <EmptyPanel
+      v-else-if="!items.length"
+      title="没有匹配结果"
+      :description="query ? `当前关键词：${query}` : '当前筛选条件下没有接口。'"
+      action="清空搜索"
+      @action="$emit('clearQuery')"
+    />
+
+    <RecycleScroller
+      v-else-if="useVirtual"
+      ref="scrollerRef"
+      class="api-wrap api-scroller"
+      :items="items"
+      :item-size="118"
+      key-field="key"
+      v-slot="{ item }"
+    >
+      <ApiListItem
+        :data-key="item.key"
+        :item="item"
+        :checked="selectedKeys.has(item.key)"
+        @toggle="$emit('toggle', $event)"
+      />
+    </RecycleScroller>
+
+    <div v-else ref="listRef" class="api-wrap">
+      <ApiListItem
+        v-for="item in items"
+        :key="item.key"
+        :data-key="item.key"
+        :item="item"
+        :checked="selectedKeys.has(item.key)"
+        @toggle="$emit('toggle', $event)"
+      />
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.panel { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle); border-radius: 24px; background: var(--bg-panel); box-shadow: var(--shadow-panel), inset 0 1px 0 rgba(255,255,255,0.06); overflow: hidden; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-bottom: 1px solid var(--border-subtle); }
+.kicker { font-family: var(--font-mono); color: var(--accent); font-size: 10px; letter-spacing: .18em; }
+h2 { margin: 3px 0 0; font-size: 18px; letter-spacing: -0.03em; }
+.pill { font-family: var(--font-mono); color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 3px 9px; }
+.api-wrap { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+.api-scroller { padding: 12px; }
+</style>
