@@ -135,6 +135,13 @@ watch(() => [props.items.length, props.query], async () => {
 .kicker { font-family: var(--font-mono); color: var(--accent); font-size: 10px; letter-spacing: .18em; }
 h2 { margin: 3px 0 0; font-size: 18px; letter-spacing: -0.03em; }
 .pill { font-family: var(--font-mono); color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 3px 9px; }
-.api-wrap { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
-.api-scroller { padding: 12px; }
+.api-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 6px 8px 0;
+  padding: 12px 6px 18px 12px;
+  scrollbar-gutter: stable;
+}
+.api-scroller { padding: 12px 6px 18px 12px; }
 </style>
